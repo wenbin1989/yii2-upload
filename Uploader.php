@@ -4,12 +4,13 @@ namespace wenbin1989\yii2\upload;
 
 use yii\base\Component;
 use yii\base\InvalidConfigException;
+use yii\base\InvalidParamException;
 use yii\helpers\FileHelper;
 use yii\web\UploadedFile;
 use Yii;
 
 /**
- * Uploader component 提供文件上传, 图片格式转换等功能.
+ * Uploader component.
  *
  * @author Wenbin Wang <wenbin1989@gmail.com>
  */
@@ -27,18 +28,17 @@ class Uploader extends Component
     public $uploadUrl = '/uploads';
 
     /**
-     * @var integer 上传文件最大尺寸, 单位为bytes. 默认为10M.
+     * @var integer max uploading file size, in bytes. Default is 10Mb.
      */
     public $maxSize = 10000000;
 
     /**
-     * @var string 图片转换服务器的url. 通过POST请求图片转换服务器, url参数中加入type=format参数, 其中format为转换后的图片格式;
-     * 请求body中为需要转换图片的二进制数据; 请求返回body为转换后图片的二进制数据.
+     * @var string image format convert server url.
      */
     public $convertServer;
 
     /**
-     * @var array 允许上传的文件格式, 格式为:
+     * @var array allowed upload file types, array format is:
      *
      * ~~~
      * [
@@ -47,7 +47,7 @@ class Uploader extends Component
      * ]
      * ~~~
      *
-     * 例如:
+     * e.g.:
      *
      * ~~~
      * [
@@ -79,15 +79,15 @@ class Uploader extends Component
      * The signature of the callable should be:
      *
      * ```php
-     * function ($type, $dir, $upload) {
-     *     // $type 上传文件的类型(文件后缀名).
-     *     // $dir 上传文件夹的名称.
-     *     // $upload 当前Upload对象实例
+     * function ($dir, $type, $uploader) {
+     *     // $dir uploading file directory.
+     *     // $type uploading file type(file extension).
+     *     // $uploader current Uploader instance.
      * }
      * ```
      *
      */
-    public $getSavePath;
+    public $savePathGenerator;
 
     /**
      * Initializes this component by ensuring the existence of the cache path.
@@ -107,11 +107,11 @@ class Uploader extends Component
     }
 
     /**
-     * 通过UploadedFile上传文件.
+     * upload by UploadedFile instance.
      *
-     * @param UploadedFile $uploadedFile UploadFile对象实例.
-     * @param string $dir 上传文件夹的名称.
-     * @param string $savePath 指定保存路径.
+     * @param UploadedFile $uploadedFile Uploaded file instance
+     * @param string $dir uploading file directory.
+     * @param string $savePath upload file save path. If null, call [[getSavePath()]] to generate one.
      * @return File
      */
     public function uploadByUploadFile($uploadedFile, $dir, $savePath = null)
@@ -128,14 +128,18 @@ class Uploader extends Component
             return $file;
         }
 
+        if ($savePath !== null) {
+            $dir = $this->getDir($savePath);
+        }
         $type = $uploadedFile->getExtension();
-        $file->error = $this->checkErrors($uploadedFile->size, $dir, $type);
+
+        $file->error = $this->getErrors($uploadedFile->size, $dir, $type);
         if ($file->error !== UPLOAD_ERR_OK) {
             return $file;
         }
 
         if ($savePath === null) {
-            $savePath = $this->getSavePath($type, $dir);
+            $savePath = $this->getSavePath($dir, $type);
         }
 
         if ($uploadedFile->saveAs($savePath)) {
@@ -148,13 +152,13 @@ class Uploader extends Component
     }
 
     /**
-     * 通过文件内容上传文件.
+     * upload file by file contents.
      *
-     * @param string $contents 文件内容
-     * @param string $dir 上传文件夹的名称.
-     * @param string $type 上传文件的类型(文件后缀名).
-     * @param string $savePath 指定保存路径.
-     * @return File.
+     * @param string $contents file contents in binary.
+     * @param string $dir uploading file directory.
+     * @param string $type uploading file type(file extension).
+     * @param string $savePath upload file save path. If null, call [[getSavePath()]] to generate one.
+     * @return File
      */
     public function uploadByContents($contents, $dir, $type, $savePath = null)
     {
@@ -165,13 +169,17 @@ class Uploader extends Component
             return $file;
         }
 
-        $file->error = $this->checkErrors(mb_strlen($contents, '8bit'), $dir, $type);
+        if ($savePath !== null) {
+            $dir = $this->getDir($savePath);
+        }
+
+        $file->error = $this->getErrors(mb_strlen($contents, '8bit'), $dir, $type);
         if ($file->error !== UPLOAD_ERR_OK) {
             return $file;
         }
 
         if ($savePath === null) {
-            $savePath = $this->getSavePath($type, $dir);
+            $savePath = $this->getSavePath($dir, $type);
         }
 
         if ($fp = fopen($savePath, 'w+')) {
@@ -186,11 +194,11 @@ class Uploader extends Component
     }
 
     /**
-     * 通过本地文件上传文件.
+     * upload file by local file.
      *
-     * @param string $localFilePath 本地文件路径
-     * @param string $dir 上传文件夹的名称.
-     * @param string $savePath 指定保存路径.
+     * @param string $localFilePath local file path.
+     * @param string $dir uploading file directory.
+     * @param string $savePath upload file save path. If null, call [[getSavePath()]] to generate one.
      * @return File
      */
     public function uploadByLocalFile($localFilePath, $dir, $savePath = null)
@@ -202,15 +210,18 @@ class Uploader extends Component
             return $file;
         }
 
+        if ($savePath !== null) {
+            $dir = $this->getDir($savePath);
+        }
         $type = pathinfo($localFilePath, PATHINFO_EXTENSION);
 
-        $file->error = $this->checkErrors(filesize($localFilePath), $dir, $type);
+        $file->error = $this->getErrors(filesize($localFilePath), $dir, $type);
         if ($file->error !== UPLOAD_ERR_OK) {
             return $file;
         }
 
         if ($savePath === null) {
-            $savePath = $this->getSavePath($type, $dir);
+            $savePath = $this->getSavePath($dir, $type);
         }
 
         if (copy($localFilePath, $savePath)) {
@@ -223,52 +234,64 @@ class Uploader extends Component
     }
 
     /**
-     * 转换文件类型(主要为图片格式转换).
+     * convert uploaded image file format. upload coverted file in the same path of src file.
      *
-     * @param string $url 待转换的文件url(上传后得到的url).
-     * @param string $type 要转换的目标文件类型(文件后缀名).
-     * @return array File.
+     * @param string $fileUrl uploaded file url.
+     * @param string $type file format to convert(file extension).
+     * @return File
      */
-    public function convert($url, $type)
+    public function covertUploadedFile($fileUrl, $type)
+    {
+        $file = new File;
+
+        $path = $this->url2SavePath($fileUrl);
+        $contents = file_get_contents($path);
+        if ($contents === false) {
+            $file->error = File::UPLOAD_ERROR_NO_LOCAL_FILE;
+            return $file;
+        }
+
+        $coverted = $this->convert($contents, $type);
+        if ($coverted === false) {
+            $file->error = File::UPLOAD_ERROR_CONVERT;
+            return $file;
+        }
+
+        $dir = $this->getDir($path);
+        $savePath = $this->changeFileExtentsion($path, $type);
+        return $this->uploadByContents($coverted, $dir, $type, $savePath);
+    }
+
+    /**
+     * convert image file format.
+     *
+     * @param string $srcData src file data to convert, in binary.
+     * @param string $type file format to convert(file extension).
+     * @return mixed converted file data, in binary, if succeed; false if failure.
+     */
+    public function convert($srcData, $type)
     {
         if ($this->convertServer === null) {
             throw new InvalidConfigException('The "convertServer" property must be set.');
         }
-
-        $file = new File;
-
-        $path = $this->url2SavePath($url);
-        $contents = file_get_contents($path);
-        if ($contents === false) {
-            $file->error = File::UPLOAD_ERROR_NO_URL;
-            return $file;
-        }
-
         /**
          * @var Curl $curl
          */
         $curl = Yii::$app->curl;
-        $convertedContents = $curl->post($this->convertServer, ['type' => $type], $contents);
+        $convertedData = $curl->post($this->convertServer, ['type' => $type], $srcData);
 
-        if ($convertedContents !== false) {
-            $dir = $this->getDirFormSavePath($path);
-            $savePath = $this->changeType($path, $type);
-            return $this->uploadByContents($convertedContents, $dir, $type, $savePath);
-        } else {
-            $file->error = File::UPLOAD_ERROR_CONVERT;
-            return $file;
-        }
+        return $convertedData;
     }
 
     /**
-     * 检查文件上传过程中是否有相关错误.
+     * get upload file errors.
      *
-     * @param integer $size 文件大小, 单位为byte.
-     * @param string $dir 上传文件夹的名称.
-     * @param string $type 上传文件的类型(文件后缀名).
-     * @return integer 错误代码. 无错误则返回[[UPLOAD_ERR_OK]].
+     * @param integer $size file size in byte.
+     * @param string $dir uploading file directory.
+     * @param string $type uploading file type(file extension).
+     * @return integer error code. return [[UPLOAD_ERR_OK]] if no error.
      */
-    private function checkErrors($size, $dir, $type)
+    private function getErrors($size, $dir, $type)
     {
         // 检查上传文件大小是否超过设定最大值
         if ($size > $this->maxSize) {
@@ -287,16 +310,83 @@ class Uploader extends Component
     }
 
     /**
-     * 获取上传文件待保存的绝对路径.
+     * get upload dir param from save path.
      *
-     * @param string $type 上传文件的类型(文件后缀名).
-     * @param string $dir 上传文件夹的名称.
+     * @param $savePath uploaded file save path.
+     * @return string
+     * @throws \yii\base\InvalidParamException if $savePath is not start with [[$uploadPath]].
+     */
+    private function getDir($savePath)
+    {
+        if (0 !== strpos($savePath, $this->uploadPath)) {
+            throw new InvalidParamException('Invalid savePath param.');
+        }
+
+        $pathArray = explode($this->uploadPath, $savePath, 2);
+        $dirArray = explode('/', $pathArray[1], 3);
+
+        return $dirArray[1];
+    }
+
+    /**
+     * get file url by save path.
+     * @param $savePath uploaded file save path.
+     * @return string file url.
+     * @throws \yii\base\InvalidParamException if $savePath is not start with [[$uploadPath]].
+     */
+    private function savePath2Url($savePath)
+    {
+        if (0 !== strpos($savePath, $this->uploadPath)) {
+            throw new InvalidParamException('Invalid savePath param.');
+        }
+
+        $pathArray = explode($this->uploadPath, $savePath, 2);
+        $pathArray[0] = $this->uploadUrl;
+        return implode('', $pathArray);
+    }
+
+    /**
+     * get file save path by url.
+     * @param $url uploaded file url.
+     * @return string file path.
+     * @throws \yii\base\InvalidParamException $url is not start with [[$uploadUrl]].
+     */
+    private function url2SavePath($url)
+    {
+        if (0 !== strpos($url, $this->uploadUrl)) {
+            throw new InvalidParamException('Invalid url param.');
+        }
+
+        $pathArray = explode($this->uploadUrl, $url, 2);
+        $pathArray[0] = $this->uploadPath;
+        return implode('', $pathArray);
+    }
+
+    /**
+     * change file extentsion.
+     *
+     * @param $filePath file path to change.
+     * @param $extentsion file extentsion to change.
+     * @return string new file path with $extentsion.
+     */
+    private function changeFileExtentsion($filePath, $extentsion)
+    {
+        $pathArray =  explode('.', $filePath, -1);
+        $pathArray[] = $extentsion;
+        return implode('.', $pathArray);
+    }
+
+    /**
+     * get upload file path to save.
+     *
+     * @param string $dir uploading file directory.
+     * @param string $type uploading file type(file extension).
      * @return string
      */
-    private function getSavePath($type, $dir)
+    private function getSavePath($dir, $type)
     {
-        if ($this->getSavePath !== null) {
-            return call_user_func($this->getSavePath, $type, $dir, $this);
+        if ($this->savePathGenerator !== null) {
+            return call_user_func($this->savePathGenerator, $dir, $type, $this);
         }
 
         $path = $this->uploadPath . '/' . $dir;
@@ -306,40 +396,10 @@ class Uploader extends Component
             FileHelper::createDirectory($path, $this->dirMode, true);
         }
 
-        // 上传文件名
+        // upload file name
         $fileName = date('YmdHis') . '_' . rand(10000, 99999) . '.' . $type;
         $path .= '/' . $fileName;
 
         return $path;
-    }
-
-    private function savePath2Url($savePath)
-    {
-        $pathArray = explode($this->uploadPath, $savePath, 2);
-        $pathArray[0] = $this->uploadUrl;
-        return implode('', $pathArray);
-    }
-
-    private function url2SavePath($url)
-    {
-        $pathArray = explode($this->uploadUrl, $url, 2);
-        $pathArray[0] = $this->uploadPath;
-        return implode('', $pathArray);
-    }
-
-    private function getDirFormSavePath($savePath)
-    {
-        $pathArray = explode($this->uploadPath, $savePath, 2);
-        $dirArray = explode('/', $pathArray[1], 3);
-
-        return $dirArray[1];
-    }
-
-    private function changeType($savePath, $type)
-    {
-        $pathArray =  explode('.', $savePath, -1);
-        $pathArray[] = $type;
-
-        return implode('.', $pathArray);
     }
 }

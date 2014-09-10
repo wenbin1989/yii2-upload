@@ -12,37 +12,35 @@ use yii\base\Model;
 class File extends Model
 {
     /**
-     * @var integer 上传文件错误代码.
+     * @var integer error code.
      */
     public $error;
     /**
-     * @var string 上传文件错误信息.
+     * @var string error message.
      */
     public $message;
     /**
-     * @var string 上传文件url.
+     * @var string file url.
      */
     public $url;
 
-    // 通过UploadedFile上传文件时, UploadedFile对象为空.
+    // when upload by UploadedFile instance, the instance is null.
     const UPLOAD_ERROR_NO_UPLOADED_FILE = 100;
-    // 通过内容上传文件时, 内容为空.
+    // when upload by file content, the content is empty.
     const UPLOAD_ERROR_NO_CONTENT = 101;
-    // 通过本地文件上传文件时, 没有本地文件.
+    // when upload by local file, the local file doesn't exist.
     const UPLOAD_ERROR_NO_LOCAL_FILE = 102;
-    // 通过URL上传文件时, 没有指定的URL.
-    const UPLOAD_ERROR_NO_URL = 103;
 
-    // 上传文件超过最大允许大小
+    // upload file size is larger than max allowed size.
     const UPLOAD_ERROR_SIZE = 200;
-    // 上传目录不被允许
+    // upload dir is not allowed.
     const UPLOAD_ERROR_DIR_NOT_ALLOWED = 201;
-    // 上传文件类型(后缀名)不被允许
+    // upload file type(file extension) is not allowed.
     const UPLOAD_ERROR_TYPE_NOT_ALLOWED = 202;
 
-    // 上传过程出错(文件读写失败)
+    // upload process error. (I/O errors, etc.)
     const UPLOAD_ERROR_UPLOAD = 300;
-    // 转换文件出错
+    // convert file format error.
     const UPLOAD_ERROR_CONVERT = 301;
 
     /**

@@ -1,0 +1,26 @@
+{
+    "name": "wenbin1989/yii2-upload",
+    "description": "upload component for yii2 framework",
+    "keywords": ["yii", "yii2", "extension", "upload"],
+    "homepage": "https://github.com/wenbin1989/yii2-upload",
+    "type": "yii2-extension",
+    "license": "MIT",
+    "support": {
+        "email": "wenbin1989@gmail.com",
+        "source": "https://github.com/wenbin1989/yii2-upload"
+    },
+    "authors": [
+        {
+            "name": "wenbin wang",
+            "email": "wenbin1989@gmail.com"
+        }
+    ],
+    "require": {
+        "wenbin1989/yii2-curl": "*",
+    },
+    "autoload": {
+        "psr-4": {
+            "wenbin1989\\yii2\\upload\\": ""
+        }
+    }
+}

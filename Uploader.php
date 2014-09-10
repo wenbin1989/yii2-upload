@@ -240,7 +240,7 @@ class Uploader extends Component
      * @param string $type file format to convert(file extension).
      * @return File
      */
-    public function covertUploadedFile($fileUrl, $type)
+    public function convertUploadedFile($fileUrl, $type)
     {
         $file = new File;
 

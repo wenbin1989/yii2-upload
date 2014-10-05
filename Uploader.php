@@ -334,7 +334,7 @@ class Uploader extends Component
      * @return string file url.
      * @throws \yii\base\InvalidParamException if $savePath is not start with [[$uploadPath]].
      */
-    private function savePath2Url($savePath)
+    public function savePath2Url($savePath)
     {
         if (0 !== strpos($savePath, $this->uploadPath)) {
             throw new InvalidParamException('Invalid savePath param.');
@@ -351,7 +351,7 @@ class Uploader extends Component
      * @return string file path.
      * @throws \yii\base\InvalidParamException $url is not start with [[$uploadUrl]].
      */
-    private function url2SavePath($url)
+    public function url2SavePath($url)
     {
         if (0 !== strpos($url, $this->uploadUrl)) {
             throw new InvalidParamException('Invalid url param.');

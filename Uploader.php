@@ -312,7 +312,7 @@ class Uploader extends Component
     /**
      * get upload dir param from save path.
      *
-     * @param $savePath uploaded file save path.
+     * @param string $savePath uploaded file save path.
      * @return string
      * @throws \yii\base\InvalidParamException if $savePath is not start with [[$uploadPath]].
      */
@@ -330,7 +330,7 @@ class Uploader extends Component
 
     /**
      * get file url by save path.
-     * @param $savePath uploaded file save path.
+     * @param string $savePath uploaded file save path.
      * @return string file url.
      * @throws \yii\base\InvalidParamException if $savePath is not start with [[$uploadPath]].
      */
@@ -347,7 +347,7 @@ class Uploader extends Component
 
     /**
      * get file save path by url.
-     * @param $url uploaded file url.
+     * @param string $url uploaded file url.
      * @return string file path.
      * @throws \yii\base\InvalidParamException $url is not start with [[$uploadUrl]].
      */
@@ -365,8 +365,8 @@ class Uploader extends Component
     /**
      * change file extentsion.
      *
-     * @param $filePath file path to change.
-     * @param $extentsion file extentsion to change.
+     * @param string $filePath file path to change.
+     * @param string $extentsion file extentsion to change.
      * @return string new file path with $extentsion.
      */
     private function changeFileExtentsion($filePath, $extentsion)

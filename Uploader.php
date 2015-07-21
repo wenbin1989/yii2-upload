@@ -38,6 +38,11 @@ class Uploader extends Component
     public $convertServer;
 
     /**
+     * @var string office format convert server url.
+     */
+    public $officeConvertServer;
+
+    /**
      * @var array allowed upload file types, array format is:
      *
      * ~~~
@@ -263,6 +268,45 @@ class Uploader extends Component
     }
 
     /**
+     * convert uploaded office file format. upload coverted file in the same path of src file.
+     *
+     * @param string $fileUrl uploaded file url.
+     * @param string $type file format to convert(file extension).
+     * @return File
+     */
+    public function convertUploadedOfficeFile($fileUrl, $type)
+    {
+        $file = new File;
+
+        $path = $this->url2SavePath($fileUrl);
+        $extension = pathinfo($path, PATHINFO_EXTENSION);
+        if ($extension === 'doc' || $extension === 'docx') {
+            $application = 'word';
+        } elseif ($extension === 'ppt' || $extension === 'pptx') {
+            $application = 'powerpoint';
+        } else {
+            $file->error = File::UPLOAD_ERROR_TYPE_NOT_ALLOWED;
+            return $file;
+        }
+
+        $contents = file_get_contents($path);
+        if ($contents === false) {
+            $file->error = File::UPLOAD_ERROR_NO_LOCAL_FILE;
+            return $file;
+        }
+
+        $coverted = $this->convertOffice($contents, $application, $type);
+        if ($coverted === false) {
+            $file->error = File::UPLOAD_ERROR_CONVERT;
+            return $file;
+        }
+
+        $dir = $this->getDir($path);
+        $savePath = $this->changeFileExtentsion($path, $type);
+        return $this->uploadByContents($coverted, $dir, $type, $savePath);
+    }
+
+    /**
      * convert image file format.
      *
      * @param string $srcData src file data to convert, in binary.
@@ -279,6 +323,28 @@ class Uploader extends Component
          */
         $curl = Yii::$app->curl;
         $convertedData = $curl->post($this->convertServer, ['type' => $type], $srcData);
+
+        return $convertedData;
+    }
+
+    /**
+     * convert office file format.
+     *
+     * @param string $srcData src file data to convert, in binary.
+     * @param string $appication office appication need to be used to do convert. eg. word, powerpoint.
+     * @param string $type file format to convert(file extension).
+     * @return mixed converted file data, in binary, if succeed; false if failure.
+     */
+    public function convertOffice($srcData, $appication, $type)
+    {
+        if ($this->officeConvertServer === null) {
+            throw new InvalidConfigException('The "officeConvertServer" property must be set.');
+        }
+        /**
+         * @var Curl $curl
+         */
+        $curl = Yii::$app->curl;
+        $convertedData = $curl->post($this->officeConvertServer, ['application' => $appication, 'type' => $type], $srcData);
 
         return $convertedData;
     }
